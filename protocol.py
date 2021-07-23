@@ -1,4 +1,5 @@
 import logging
+import math
 import struct
 import threading
 import time
@@ -28,6 +29,7 @@ class Protocol:
 
         self.rrg: RRG = RRG(max_flow=1500, rrg_number=5)
         self.valve: Valve = Valve(rele_unit=6)
+        self.humidity_sensor = HumiditySensor(unit_num=28)
 
     def set_flow(self, flow: str):
         flow = float(flow)
@@ -40,6 +42,7 @@ class Protocol:
                 self.valve.close_valve(self.ser)
             else:
                 self.valve.open_valve(self.ser)
+            module_logger.info(self.rrg.read_flow(self.ser))
 
     def set_port(self, port):
         self.ser.port = port
@@ -65,8 +68,9 @@ class Protocol:
     def run_thread(self):
         self.is_stoped = False
         while not self.is_stoped:
-            time.sleep(1)
+            time.sleep(60)
             module_logger.info(self.rrg.read_flow(self.ser))
+            module_logger.info(self.humidity_sensor.read_absolute_humidity(self.ser))
 
     def create_thread(self):
         thread = threading.Thread(target=self.run_thread)
@@ -122,3 +126,21 @@ class Valve:
 
     def close_valve(self, ser: ModbusSerialClient):
         ser.write_coils(0x0000, (False,) * 8, unit=self.rele_unit)
+
+class HumiditySensor:
+    def __init__(self, unit_num: int):
+        self.unit_num = unit_num
+
+    def read_temperature_and_humidity(self, ser: ModbusSerialClient):
+        temperature, humidity = struct.unpack("<ff", struct.pack("<HHHH", *ser.read_input_registers(0, 4, unit=28).registers))
+        return temperature, humidity
+
+    def read_absolute_humidity(self, ser: ModbusSerialClient):
+        temperature, humidity = self.read_temperature_and_humidity(ser)
+
+        ew_t = 6.112 * math.exp(17.62 * temperature / (243.12 + temperature))
+        p = 101325/100 # in gPa
+        ew_tp = (1.0016 + 3.15e-6 * p  - 0.074 / p) * ew_t # in gPa
+
+        e = humidity / 100 * ew_tp # in gPa
+        return e * 100 / 461.5 / (temperature + 273.15) # in kg/m3
