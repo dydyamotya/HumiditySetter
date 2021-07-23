@@ -68,9 +68,10 @@ class Protocol:
     def run_thread(self):
         self.is_stoped = False
         while not self.is_stoped:
-            time.sleep(60)
+            time.sleep(1)
             module_logger.info(self.rrg.read_flow(self.ser))
-            module_logger.info(self.humidity_sensor.read_absolute_humidity(self.ser))
+            time.sleep(1)
+            module_logger.info(str(self.humidity_sensor.read_absolute_humidity(self.ser)))
 
     def create_thread(self):
         thread = threading.Thread(target=self.run_thread)
@@ -132,7 +133,7 @@ class HumiditySensor:
         self.unit_num = unit_num
 
     def read_temperature_and_humidity(self, ser: ModbusSerialClient):
-        temperature, humidity = struct.unpack("<ff", struct.pack("<HHHH", *ser.read_input_registers(0, 4, unit=28).registers))
+        temperature, humidity = struct.unpack("<ff", struct.pack("<HHHH", *ser.read_input_registers(0, 4, unit=self.unit_num).registers))
         return temperature, humidity
 
     def read_absolute_humidity(self, ser: ModbusSerialClient):

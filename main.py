@@ -7,7 +7,7 @@ from widgets import MainWindow
 log_format_string = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 
 if __name__ == "__main__":
-    logging.basicConfig(filename="log.log", filemode="a", format=log_format_string, level=logging.INFO)
+    logging.basicConfig(format=log_format_string, level=logging.INFO)
     logger = logging.getLogger(__name__)
     logger.debug("Program started")
     app = QtWidgets.QApplication()
