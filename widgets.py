@@ -4,7 +4,7 @@ import PySide6
 from PySide6 import QtWidgets, QtCore
 from PySide6.QtCore import QSettings, QEvent
 
-from protocol import get_comports_names, Protocol
+from protocol import get_comports_names, Protocol, QtProtocol
 
 module_logger = logging.getLogger(__name__)
 
@@ -41,18 +41,21 @@ class MainWidget(QtWidgets.QWidget):
             first_comport = ""
         finally:
             self.com_port_entry = QtWidgets.QLineEdit(first_comport, self)
-            self.protocol = Protocol(first_comport if first_comport != "" else None)
+            self.protocol = QtProtocol(first_comport if first_comport != "" else None)
             self.layout().addWidget(self.com_port_entry)
 
             self.original_keyPress = self.com_port_entry.keyPressEvent
             self.com_port_entry.keyPressEvent = self.com_port_entry_key_press
 
-        self.layout().addWidget(QtWidgets.QLabel("Flow:", self))
+        self.layout().addWidget(QtWidgets.QLabel("Conc:", self))
 
         self.flow_entry = QtWidgets.QLineEdit(self)
         self.original_flow_keypress = self.flow_entry.keyPressEvent
         self.flow_entry.keyPressEvent = self.flow_entry_key_press
         self.layout().addWidget(self.flow_entry)
+        self.label_to_show_parametrs = QtWidgets.QLabel("Hello", self)
+        self.layout().addWidget(self.label_to_show_parametrs)
+        self.protocol.stats.connect(self.label_to_show_parametrs.setText)
 
     def flow_entry_key_press(self, event: QEvent):
         if event.type() == QEvent.KeyPress:

@@ -8,7 +8,11 @@ log_format_string = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 
 if __name__ == "__main__":
     logging.basicConfig(format=log_format_string, level=logging.INFO)
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger()
+    handler = logging.FileHandler("default.log", mode="a")
+    formatter = logging.Formatter(fmt=log_format_string)
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
     logger.debug("Program started")
     app = QtWidgets.QApplication()
     settings = QSettings("MotyaSoft", "HumiditySetter")
