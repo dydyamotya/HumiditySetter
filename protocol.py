@@ -179,6 +179,15 @@ class QtProtocol(QWidget, Protocol):
         self.second_stage_sent = False
         self.second_start_time = 0
 
+        self.second_ser = ModbusSerialClient(method="rtu",
+                                             port=None,
+                                             baudrate=9600)
+
+    def set_second_port(self, port: str):
+        self.second_ser.port = port
+        if not self.second_ser.connect():
+            module_logger.info("try another port, second port")
+
     def run_thread(self):
         self.is_stoped = False
         start_time = time.time()
@@ -208,11 +217,18 @@ class QtProtocol(QWidget, Protocol):
             flow5 = self.rrg5.read_flow(self.ser)
             time.sleep(0.05)
             self.humidity = self.humidity_sensor.read_absolute_humidity(self.ser)
-            string = self.emit_stats_format.format(flow1, flow3, flow5, self.humidity)
+
+            conc = self.read_binar_registers(self.second_ser)
+            string = self.emit_stats_format.format(flow1, flow3, flow5, self.humidity, conc)
             self.stats.emit(string)
             module_logger.info(string)
         except:
             pass
+
+    def read_binar_registers(self, ser: ModbusSerialClient):
+        registers = ser.read_input_registers(3000, 2, unit=27).registers
+        concentration = struct.unpack("<f", struct.pack("<HH", *reversed(registers)))
+        return concentration
 
     def set_flow(self, flow: str):
         self.conc = int(flow)
@@ -256,3 +272,6 @@ class QtProtocol(QWidget, Protocol):
             time.sleep(0.05)
             self.valve.close_valve(self.ser)
             time.sleep(0.05)
+            self.ser.close()
+        if self.second_ser.is_socket_open():
+            self.second_ser.close()
