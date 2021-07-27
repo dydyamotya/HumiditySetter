@@ -34,7 +34,7 @@ class MainWidget(QtWidgets.QWidget):
         super(MainWidget, self).__init__(parent=parent)
         self.setLayout(QtWidgets.QVBoxLayout())
 
-        self.layout().addWidget(QtWidgets.QLabel("Port:", self))
+        self.layout().addWidget(QtWidgets.QLabel("Ports:", self))
         try:
             first_comport = get_comports_names()[0]
         except IndexError:
@@ -46,6 +46,12 @@ class MainWidget(QtWidgets.QWidget):
 
             self.original_keyPress = self.com_port_entry.keyPressEvent
             self.com_port_entry.keyPressEvent = self.com_port_entry_key_press
+
+            self.second_com_port_entry = QtWidgets.QLineEdit(first_comport, self)
+            self.layout().addWidget(self.second_com_port_entry)
+
+            self.original_keyPress = self.second_com_port_entry.keyPressEvent
+            self.second_com_port_entry.keyPressEvent = self.second_com_port_entry_key_press
 
         self.layout().addWidget(QtWidgets.QLabel("Conc:", self))
 
@@ -67,4 +73,10 @@ class MainWidget(QtWidgets.QWidget):
         if event.type() == QEvent.KeyPress:
             if event.key() == QtCore.Qt.Key_Return:
                 self.protocol.set_port(self.com_port_entry.text())
+        self.original_keyPress(event)
+
+    def second_com_port_entry_key_press(self, event: QEvent) -> None:
+        if event.type() == QEvent.KeyPress:
+            if event.key() == QtCore.Qt.Key_Return:
+                self.protocol.set_second_port(self.second_com_port_entry.text())
         self.original_keyPress(event)
