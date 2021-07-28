@@ -4,6 +4,7 @@ import struct
 import threading
 import time
 import typing
+import traceback
 
 import pymodbus.exceptions
 import serial
@@ -162,18 +163,19 @@ class HumiditySensor:
 
 class QtProtocol(QWidget, Protocol):
     stats = Signal(str)
-    emit_stats_format = "{:3.3f} {:3.3f} {:3.3f} {:2.3e}"
+    emit_stats_format = "{:3.3f} {:3.3f} {:3.3f} {:2.3e} {:3.3f}"
 
     def __init__(self, port=None):
         QWidget.__init__(self)
         Protocol.__init__(self, port=port)
 
-        self.rrg1 = RRG(rrg_number=1, max_flow=60)
+        #self.rrg1 = RRG(rrg_number=1, max_flow=60)
         self.rrg3 = RRG(rrg_number=3, max_flow=60)
         self.rrg5 = RRG(rrg_number=5, max_flow=1500)
 
         self.conc = 0
         self.humidity = 0
+        self.mistakes = 0
 
         self.first_stage_sent = False
         self.second_stage_sent = False
@@ -189,11 +191,16 @@ class QtProtocol(QWidget, Protocol):
             module_logger.info("try another port, second port")
 
     def run_thread(self):
+        self.mistakes = 0
         self.is_stoped = False
         start_time = time.time()
         self.set_h2s_flow(conc=self.conc)
         while not self.is_stoped:
             self.read_and_emit()
+
+            if self.mistakes > 5:
+                module_logger.info("No chance to connect, closing")
+                self.stop()
             now_time = time.time()
             if (now_time - start_time) > 1800:
                 if not self.first_stage_sent:
@@ -210,24 +217,27 @@ class QtProtocol(QWidget, Protocol):
 
     def read_and_emit(self):
         try:
-            flow1 = self.rrg1.read_flow(self.ser)
+            flow1 = 0
             time.sleep(0.05)
             flow3 = self.rrg3.read_flow(self.ser)
             time.sleep(0.05)
             flow5 = self.rrg5.read_flow(self.ser)
             time.sleep(0.05)
-            self.humidity = self.humidity_sensor.read_absolute_humidity(self.ser)
-
+            self.humidity = self.humidity_sensor.read_absolute_humidity(self.second_ser)
+            time.sleep(0.05)
             conc = self.read_binar_registers(self.second_ser)
             string = self.emit_stats_format.format(flow1, flow3, flow5, self.humidity, conc)
             self.stats.emit(string)
             module_logger.info(string)
-        except:
-            pass
+        except pymodbus.exceptions.ModbusException:
+            module_logger.error(traceback.format_exc())
+            self.mistakes += 1
+
+
 
     def read_binar_registers(self, ser: ModbusSerialClient):
         registers = ser.read_input_registers(3000, 2, unit=27).registers
-        concentration = struct.unpack("<f", struct.pack("<HH", *reversed(registers)))
+        concentration, = struct.unpack("<f", struct.pack("<HH", *reversed(registers)))
         return concentration
 
     def set_flow(self, flow: str):
@@ -235,7 +245,7 @@ class QtProtocol(QWidget, Protocol):
 
     def set_h2s_flow(self, conc):
         if conc == 0:
-            self.rrg1.change_flow(0, self.ser)
+            #self.rrg1.change_flow(0, self.ser)
             time.sleep(0.05)
             self.rrg3.change_flow(0, self.ser)
             time.sleep(0.05)
@@ -244,7 +254,7 @@ class QtProtocol(QWidget, Protocol):
             self.valve.open_valves((0, 1, 0, 0, 0, 1, 1, 0), self.ser)
             time.sleep(0.05)
         if conc == 1:
-            self.rrg1.change_flow(0, self.ser)
+            #self.rrg1.change_flow(0, self.ser)
             time.sleep(0.05)
             self.rrg3.change_flow(5, self.ser)
             time.sleep(0.05)
@@ -253,7 +263,7 @@ class QtProtocol(QWidget, Protocol):
             self.valve.open_valves((0, 1, 0, 0, 1, 1, 1, 0), self.ser)
             time.sleep(0.05)
         if conc == 50:
-            self.rrg1.change_flow(25, self.ser)
+            #self.rrg1.change_flow(25, self.ser)
             time.sleep(0.05)
             self.rrg3.change_flow(0, self.ser)
             time.sleep(0.05)
@@ -264,7 +274,7 @@ class QtProtocol(QWidget, Protocol):
 
     def close_event(self):
         if self.ser.is_socket_open():
-            self.rrg1.change_flow(0, self.ser)
+            #self.rrg1.change_flow(0, self.ser)
             time.sleep(0.05)
             self.rrg3.change_flow(0, self.ser)
             time.sleep(0.05)

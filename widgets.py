@@ -34,49 +34,38 @@ class MainWidget(QtWidgets.QWidget):
         super(MainWidget, self).__init__(parent=parent)
         self.setLayout(QtWidgets.QVBoxLayout())
 
-        self.layout().addWidget(QtWidgets.QLabel("Ports:", self))
+        self.layout().addWidget(QtWidgets.QLabel("GasMix Port:", self))
         try:
             first_comport = get_comports_names()[0]
         except IndexError:
             first_comport = ""
-        finally:
-            self.com_port_entry = QtWidgets.QLineEdit(first_comport, self)
-            self.protocol = QtProtocol(first_comport if first_comport != "" else None)
-            self.layout().addWidget(self.com_port_entry)
 
-            self.original_keyPress = self.com_port_entry.keyPressEvent
-            self.com_port_entry.keyPressEvent = self.com_port_entry_key_press
+        self.com_port_entry = QtWidgets.QLineEdit(first_comport, self)
+        self.protocol = QtProtocol(first_comport if first_comport != "" else None)
+        self.layout().addWidget(self.com_port_entry)
 
-            self.second_com_port_entry = QtWidgets.QLineEdit(first_comport, self)
-            self.layout().addWidget(self.second_com_port_entry)
-
-            self.original_keyPress = self.second_com_port_entry.keyPressEvent
-            self.second_com_port_entry.keyPressEvent = self.second_com_port_entry_key_press
+        self.layout().addWidget(QtWidgets.QLabel("Hum and conc Port:", self))
+        self.second_com_port_entry = QtWidgets.QLineEdit(first_comport, self)
+        self.layout().addWidget(self.second_com_port_entry)
 
         self.layout().addWidget(QtWidgets.QLabel("Conc:", self))
 
         self.flow_entry = QtWidgets.QLineEdit(self)
-        self.original_flow_keypress = self.flow_entry.keyPressEvent
-        self.flow_entry.keyPressEvent = self.flow_entry_key_press
         self.layout().addWidget(self.flow_entry)
+
         self.label_to_show_parametrs = QtWidgets.QLabel("Hello", self)
         self.layout().addWidget(self.label_to_show_parametrs)
         self.protocol.stats.connect(self.label_to_show_parametrs.setText)
 
-    def flow_entry_key_press(self, event: QEvent):
-        if event.type() == QEvent.KeyPress:
-            if event.key() == QtCore.Qt.Key_Return:
-                self.protocol.set_flow(self.flow_entry.text())
-        self.original_flow_keypress(event)
+        self.start_button = QtWidgets.QPushButton(text="Start", parent=self)
+        self.layout().addWidget(self.start_button)
+        self.start_button.clicked.connect(self.start_experiment)
 
-    def com_port_entry_key_press(self, event: QEvent) -> None:
-        if event.type() == QEvent.KeyPress:
-            if event.key() == QtCore.Qt.Key_Return:
-                self.protocol.set_port(self.com_port_entry.text())
-        self.original_keyPress(event)
+    def start_experiment(self):
+        gasmix_port = self.com_port_entry.text()
+        humconc_port = self.second_com_port_entry.text()
+        conc_value = self.flow_entry.text()
 
-    def second_com_port_entry_key_press(self, event: QEvent) -> None:
-        if event.type() == QEvent.KeyPress:
-            if event.key() == QtCore.Qt.Key_Return:
-                self.protocol.set_second_port(self.second_com_port_entry.text())
-        self.original_keyPress(event)
+        self.protocol.set_second_port(humconc_port)
+        self.protocol.set_flow(conc_value)
+        self.protocol.set_port(gasmix_port)
