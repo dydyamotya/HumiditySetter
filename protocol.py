@@ -206,14 +206,16 @@ class QtProtocol(QWidget, Protocol):
                 if not self.first_stage_sent:
                     self.set_h2s_flow(conc=0)
                     self.first_stage_sent = True
-                if (self.humidity > 0.01672) and not self.second_stage_sent:
-                    self.set_h2s_flow(conc=self.conc)
-                    self.second_stage_sent = True
-                    self.second_start_time = time.time()
-                if self.second_stage_sent:
-                    if (now_time - self.second_start_time) > 1800:
-                        self.stop()
+                else:
+                    if (self.humidity > 0.01672) and not self.second_stage_sent:
+                        self.set_h2s_flow(conc=self.conc)
+                        self.second_stage_sent = True
+                        self.second_start_time = time.time()
+                    if self.second_stage_sent:
+                        if (now_time - self.second_start_time) > 1800:
+                            self.stop()
             time.sleep(0.8)
+        self.close_event()
 
     def read_and_emit(self):
         try:
